@@ -72,7 +72,11 @@ const popups = [];
   try {
     const vat = await loadAntVAT('/models/ant.glb');
     colony = createColony(scene, vat);
-    await poll(true);
+    // Keep trying until the API answers with a colony (it may be warming up or misconfigured).
+    for (let attempt = 0; !(await poll(true)); attempt++) {
+      if (attempt === 2) $('loader-text').textContent = 'The colony is still waking up…';
+      await new Promise((r) => setTimeout(r, 4000));
+    }
     if (!RECORD) setInterval(() => poll(false), 4000);
     $('loader').classList.add('done');
     let seen = false;
@@ -123,12 +127,16 @@ function stepTweens(dt) {
   }
 }
 
+// Returns true when a usable snapshot arrived; on errors the last good state stays on screen.
 async function poll(first) {
   let next;
   try {
-    next = await (await fetch('/api/state', { cache: 'no-store' })).json();
-  } catch {
-    return;
+    const res = await fetch('/api/state', { cache: 'no-store' });
+    next = await res.json();
+    if (!res.ok || !Array.isArray(next.holders)) throw new Error(next.error || `HTTP ${res.status}`);
+  } catch (e) {
+    console.warn('[ants] state unavailable:', e.message);
+    return false;
   }
   state = next;
   clockSkew = state.now - Date.now(); // server clock vs ours, for "x ago" labels
@@ -144,6 +152,7 @@ async function poll(first) {
   renderStats();
   renderList(!first);
   if (colony.selected) renderAntPanel(colony.selected);
+  return true;
 }
 
 // ---------- events -> scene + toasts ----------
@@ -198,7 +207,7 @@ function renderStatic() {
   document.querySelectorAll('[data-bind="symbol"]').forEach((e) => (e.textContent = `$${token.symbol}`));
   document.querySelectorAll('[data-bind="reward"]').forEach((e) => (e.textContent = R()));
   document.title = `${token.name} ($${token.symbol}) — every holder is an ant`;
-  $('ca').querySelector('.ca-value').textContent = token.mint || 'demo mode — no token yet';
+  $('ca').querySelector('.ca-value').textContent = token.mint || token.caLabel || 'coming soon';
   $('link-buy').href = $('intro-buy').href = token.mint ? `https://pump.fun/coin/${token.mint}` : 'https://pump.fun';
   $('link-chart').href = token.mint ? `https://dexscreener.com/solana/${token.mint}` : 'https://dexscreener.com/solana';
   if (token.linkX) Object.assign($('link-x'), { href: token.linkX, hidden: false });

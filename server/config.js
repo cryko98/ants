@@ -7,11 +7,15 @@ const num = (k, d) => {
 };
 
 export function loadConfig() {
-  const mint = str('TOKEN_MINT');
+  // Anything that isn't a Solana address (empty, "coming soon", "TBA"...) means pre-launch:
+  // the site runs the demo colony and shows that text in place of the contract address.
+  const raw = str('TOKEN_MINT');
+  const mint = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(raw) ? raw : '';
   return {
     mode: mint ? 'live' : 'demo',
     token: {
       mint,
+      caLabel: mint ? '' : raw,
       name: str('TOKEN_NAME', 'Ant Colony'),
       symbol: str('TOKEN_SYMBOL', 'ANTS'),
       linkX: str('LINK_X'),
