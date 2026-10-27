@@ -117,12 +117,41 @@ export function createChain(cfg) {
       return out;
     },
 
-    // USD prices for the coin and SOL (Jupiter, falling back to DexScreener for the coin).
-    async prices() {
-      const out = { token: null, sol: null };
+    // Token accounts held by `owner` (both token programs): [{ address, mint, amount, decimals }].
+    async tokenAccounts(owner) {
+      const out = [];
+      for (const programId of [TOKEN_PROGRAM, TOKEN_2022_PROGRAM]) {
+        const r = await rpc('getTokenAccountsByOwner', [owner, { programId }, { encoding: 'jsonParsed' }]);
+        for (const a of r.value) {
+          const info = a.account.data.parsed.info;
+          out.push({ address: a.pubkey, mint: info.mint, amount: BigInt(info.tokenAmount.amount), decimals: info.tokenAmount.decimals });
+        }
+      }
+      return out;
+    },
+
+    // Best-effort symbol for a token: Token-2022 metadata, then Helius DAS, then null.
+    async tokenSymbol(mint) {
       try {
-        const r = await (await fetch(`https://lite-api.jup.ag/price/v3?ids=${cfg.token.mint},${WSOL}`)).json();
+        const acc = await rpc('getAccountInfo', [mint, { encoding: 'jsonParsed' }]);
+        const meta = acc?.value?.data?.parsed?.info?.extensions?.find((e) => e.extension === 'tokenMetadata');
+        if (meta?.state?.symbol) return meta.state.symbol;
+      } catch {}
+      try {
+        const asset = await rpc('getAsset', { id: mint });
+        if (asset?.content?.metadata?.symbol) return asset.content.metadata.symbol;
+      } catch {}
+      return null;
+    },
+
+    // USD prices for the coin, the reward token and SOL (Jupiter, DexScreener fallback for the coin).
+    async prices(rewardMint) {
+      const out = { token: null, reward: null, sol: null };
+      const ids = [...new Set([cfg.token.mint, rewardMint, WSOL])].join(',');
+      try {
+        const r = await (await fetch(`https://lite-api.jup.ag/price/v3?ids=${ids}`)).json();
         out.token = r?.[cfg.token.mint]?.usdPrice ?? null;
+        out.reward = r?.[rewardMint]?.usdPrice ?? null;
         out.sol = r?.[WSOL]?.usdPrice ?? null;
       } catch {}
       if (out.token == null) {
@@ -136,3 +165,5 @@ export function createChain(cfg) {
     },
   };
 }
+
+export { WSOL };

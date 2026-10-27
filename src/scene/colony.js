@@ -305,7 +305,7 @@ export function createColony(scene, vat) {
 
   function sync(holders, meta) {
     stashUnit = meta.stashUnit || stashUnit;
-    potTarget = 0.75 + 1.9 * (1 - Math.exp(-(meta.potSol || 0) / 0.4));
+    potTarget = 0.75 + 1.9 * (1 - Math.exp(-(meta.potUsd || 0) / 25)); // pile grows with the vault value in US$
     const initial = ants.size === 0;
     const seen = new Set();
     let changed = initial;

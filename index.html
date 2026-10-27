@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Ant Colony — every holder is an ant</title>
-    <meta name="description" content="A living 3D ant colony on Solana. Every holder is an ant, sized by their bag, hauling creator rewards home in SOL." />
+    <meta name="description" content="A living 3D ant colony on Solana. Every holder is an ant, sized by their bag, hauling their share of the creator fees home." />
     <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
     <link rel="icon" href="/favicon-64.png" sizes="64x64" type="image/png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -29,11 +29,11 @@
         <img class="intro-logo" src="/logo.png" alt="" width="132" height="132" />
         <span class="intro-kicker"><i></i> Live on Solana</span>
         <h1 data-bind="name">Ant Colony</h1>
-        <p class="intro-tag">Every holder is an ant. Every trade feeds the colony.<br />Your ant hauls your share of the creator fees home, paid out in real SOL.</p>
+        <p class="intro-tag">Every holder is an ant. Every trade feeds the colony.<br />Your ant hauls your share of the creator fees home, paid out automatically on-chain.</p>
         <div class="intro-stats">
-          <div><b id="i-paid">0</b><span>SOL paid to holders</span></div>
+          <div><b id="i-paid">0</b><span><span data-bind="reward">SOL</span> paid to holders</span></div>
           <div><b id="i-ants">0</b><span>ants in the colony</span></div>
-          <div><b id="i-pot">0</b><span>SOL in the rewards vault</span></div>
+          <div><b id="i-pot">0</b><span><span data-bind="reward">SOL</span> in the rewards vault</span></div>
         </div>
         <div class="intro-cta">
           <button class="btn primary big" id="intro-enter">Enter the colony</button>
@@ -64,11 +64,11 @@
       <div class="mode" id="mode">DEMO</div>
       <div class="pot">
         <span class="label">Holder rewards vault</span>
-        <span class="pot-value"><span id="pot-sol">0.000</span> <small>SOL</small></span>
+        <span class="pot-value"><span id="pot-sol">0.000</span> <small data-bind="reward">SOL</small></span>
         <span class="sub" id="pot-sub">Paid out automatically by pump.fun</span>
       </div>
       <div class="grid">
-        <div><span class="label">Paid to holders</span><b id="paid-sol">0</b><small>SOL</small></div>
+        <div><span class="label">Paid to holders</span><b id="paid-sol">0</b><small data-bind="reward">SOL</small></div>
         <div><span class="label">Ants</span><b id="holders">0</b></div>
         <div><span class="label">Wallets paid</span><b id="paid-wallets">0</b></div>
         <div><span class="label">Last payout</span><b id="last-payout">—</b></div>
@@ -101,8 +101,8 @@
       <div class="ap-grid">
         <div><span class="label">Bag</span><b id="ap-bag">0</b></div>
         <div><span class="label">Share of supply</span><b id="ap-pct">0%</b></div>
-        <div><span class="label">Next payout (est.)</span><b id="ap-owed">0</b><small>SOL</small></div>
-        <div><span class="label">Received</span><b id="ap-recv">0</b><small>SOL</small></div>
+        <div><span class="label">Next payout (est.)</span><b id="ap-owed">0</b><small data-bind="reward">SOL</small></div>
+        <div><span class="label">Received</span><b id="ap-recv">0</b><small data-bind="reward">SOL</small></div>
       </div>
       <div class="meter"><span id="ap-meter"></span></div>
       <p class="hint" id="ap-hint"></p>
@@ -124,7 +124,7 @@
         <li><b>Hold, hatch.</b> Every wallet holding the token hatches an ant. The bigger your bag, the bigger your ant — from tiny workers to soldiers, majors and the Queen.</li>
         <li><b>Fees become sugar.</b> This coin launched as a pump.fun <b>Holder Rewards</b> coin: the creator fee from every trade goes to holders, not to the dev. It collects in the coin's on-chain vault, the sugar pile in the middle.</li>
         <li><b>Ants haul it home.</b> Every so often pump.fun splits the vault between every wallet holding at least ~$<span data-bind="min-usd">20</span> of the coin, pro-rata to their bag. Your ant carries your share back to its mound.</li>
-        <li><b>Paid in SOL.</b> It lands in your wallet automatically, no claiming and no staking. Every payout on this page is read straight from the chain.</li>
+        <li><b>Paid in <span data-bind="reward">SOL</span>.</b> It lands in your wallet automatically, no claiming and no staking. Every payout on this page is read straight from the chain.</li>
       </ol>
       <ul class="legend">
         <li><i style="background: #d79a2b"></i><b>Queen</b> the #1 holder</li>

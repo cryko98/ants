@@ -75,10 +75,10 @@ export function demoSnapshot(cfg, now = Date.now()) {
     const paid = cast.filter((c) => present(c, e)).map((c) => ({ c, p: pctAt(c, e) }));
     const sum = paid.reduce((s, h) => s + h.p, 0) || 1;
     const amount = payoutSol(j);
-    events.push({ type: 'claim', sig: sigFor(j, 99), lamports: String(Math.round(amount * 1e9)), t: t - 4000 });
+    events.push({ type: 'claim', sig: sigFor(j, 99), amount: String(Math.round(amount * 1e9)), t: t - 4000 });
     for (let b = 0; b * BATCH < paid.length; b++) {
       const to = paid.slice(b * BATCH, (b + 1) * BATCH).map(({ c, p }) => [c.o, String(Math.round(((amount * p) / sum) * 1e9))]);
-      events.push({ type: 'payout', sig: sigFor(j, b), lamports: String(to.reduce((s, [, l]) => s + Number(l), 0)), to, t: t + b * 400 });
+      events.push({ type: 'payout', sig: sigFor(j, b), amount: String(to.reduce((s, [, l]) => s + Number(l), 0)), to, t: t + b * 400 });
     }
   }
   for (let e = epoch - 20; e <= epoch; e++) {
@@ -96,8 +96,9 @@ export function demoSnapshot(cfg, now = Date.now()) {
   return {
     mode: 'demo',
     token: { ...cfg.token, supply: SUPPLY, decimals: 6, priceUsd: null },
+    reward: { mint: 'So11111111111111111111111111111111111111112', symbol: 'SOL', decimals: 9, priceUsd: 180 },
     vault: 'demo',
-    pot: { balance: vault, solUsd: 180, thresholdSol: payoutSol(k + 1) },
+    pot: { balance: vault, usd: vault * 180, threshold: payoutSol(k + 1) },
     stats: {
       totalDistributed,
       totalInflow: totalDistributed + vault,

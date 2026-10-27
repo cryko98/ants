@@ -1,30 +1,24 @@
-// Local server: serves the site (Vite in dev) and the same /api the Netlify functions expose.
+// Local server: serves the site (Vite in dev) and the same /api the Vercel functions expose.
 import 'dotenv/config';
 import express from 'express';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from './config.js';
-import { createApi, createFileStorage } from './api.js';
+import { createApi } from './api.js';
+import { createFileStorage } from './storage.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dev = process.argv.includes('--dev');
 const port = Number(process.env.PORT || 8787);
 const cfg = loadConfig();
-const api = createApi({ cfg, storage: createFileStorage(path.join(root, 'data', 'index.json')) });
-
-if (cfg.mode === 'live') {
-  // Netlify runs this on a schedule; locally a timer does the same.
-  const sync = () => api.sync(20000).then((s) => console.log(`[sync] ${s.stats.holderCount} holders, ${s.stats.payouts} payouts, backlog ${s.stats.backlog}`)).catch((e) => console.error('[sync]', e.message));
-  sync();
-  setInterval(sync, 60_000);
-}
+const api = createApi({ cfg, storage: createFileStorage(path.join(root, 'data', `${cfg.token.mint || 'demo'}.json`)) });
 
 const app = express();
 app.get('/api/state', async (_req, res) => {
   try {
     res.json(await api.state());
   } catch (e) {
-    res.status(502).json({ error: e.message });
+    res.status(503).json({ error: e.message });
   }
 });
 app.get('/api/holder/:owner', async (req, res) => {

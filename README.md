@@ -2,8 +2,9 @@
 
 Élő 3D hangyakolónia egy pump.fun **Holder Rewards** coinhoz. Minden holder egy hangya, amelynek a mérete
 a tartott mennyiségtől függ. A trade-ekből származó creator fee nem a devhez megy, hanem a coin
-on-chain vaultjába (ez a cukorkupac). Onnan a pump.fun időnként automatikusan, SOL-ban kiosztja
-a holdereknek. Az oldal ezeket a **valódi kifizetéseket olvassa a láncról** és jeleníti meg.
+on-chain vaultjába (ez a cukorkupac). Onnan a pump.fun időnként automatikusan kiosztja a holdereknek,
+a coin párjában: SOL-ban vagy egy custom pair tokenben (például ANTHROPIC).
+Az oldal ezeket a **valódi kifizetéseket olvassa a láncról**.
 
 Az oldal **csak olvas**: nincs privát kulcs, nem kezel pénzt, és nem fizet ki semmit.
 
@@ -16,54 +17,69 @@ npm run dev
 
 http://localhost:8787 — egy szimulált kolónia fut, kitalált holderekkel és kifizetésekkel.
 
-## A coin indítása
+## Elég a token mint
 
-A pump.fun-on a coin létrehozásakor kapcsold be a **Holder Rewards** opciót, SOL párral.
-Ez később nem változtatható. A pump.fun szabályai (lásd https://pump.fun/docs/fees):
+A `TOKEN_MINT` megadása után az oldal magától megtalálja a jutalmakat:
 
-- a creator fee a holderekhez megy, a jogosult holderek között a tartott mennyiség arányában;
+- **Vault:** a holder-rewards vault címe a mintből számolható. PDA a pump programon
+  (`6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P`), `["holder-rewards", mint]` seedekkel.
+- **Reward eszköz:** ha a vaultban SOL van, a jutalom SOL. Ha csak egy token-számla van benne,
+  akkor az a token (custom pair). A `REWARD_MINT` változóval felül is írható.
+- **Kifizetések:** a vault minden `DistributeFeeToHolders` tranzakciója egy valódi kifizetés.
+  A holderekhez jóváírt összeget számolja, a pump.fun crankjének költség-visszatérítését kihagyja.
+  A vaultba érkező egyéb összegek fee-beérkezésként jelennek meg.
+- **Holderek:** egy Helius RPC-vel (`RPC_URL`) kéri le őket. A pool és a bonding curve kimarad.
+
+Ezt két élő coinon teszteltem: egy SOL-páros és egy PUMP-páros Holder Rewards coin kifizetéseit is helyesen olvasta.
+
+A pump.fun szabályai (lásd https://pump.fun/docs/fees):
+
+- a jutalom a jogosult holderek között a tartott mennyiség arányában oszlik meg;
 - jogosult az a tárca, amelyik legalább kb. 20 dollárnyi tokent tart;
-- a kiosztás időnként automatikusan fut, ha a vault fedezi a költségtartalékot plusz kb. 20 dollárt.
+- a kiosztás időnként fut, ha a vault fedezi a költségtartalékot (SOL-párnál kb. 0,01, token-párnál kb. 0,20 dollár holderenként) plusz kb. 20 dollárt.
 
-## Netlify
+## Vercel
 
-1. A Netlify-n: **Add new project → Import from Git →** válaszd ki ezt a repót.
-   A build beállításokat a `netlify.toml` adja (`npm run build`, a `dist` mappa, és a függvények).
-2. **Site configuration → Environment variables** (scope: Functions). Lásd `.env.example`:
-   - `TOKEN_MINT` – a coin mint címe. Ha üres, az oldal demó módban fut.
-   - `RPC_URL` – Helius RPC URL ajánlott (a holder-lekérés a `getTokenAccounts` metódust használja).
-   - `TOKEN_NAME`, `TOKEN_SYMBOL`, `LINK_X`, `LINK_TELEGRAM`, `EXCLUDE_WALLETS`
-3. Változók módosítása után: **Deploys → Trigger deploy**.
-4. Domain: **Domain management → Add a domain**. Ott vehetsz is, vagy beköthetsz egy meglévőt.
+1. Vercel: **Add New → Project →** importáld a `cryko98/ants` repót. A beállításokat a `vercel.json` adja.
+2. **Storage → Marketplace → Upstash for Redis → Connect** a projekthez.
+   Ez automatikusan beállítja a `KV_REST_API_URL` / `KV_REST_API_TOKEN` változókat.
+   Itt tárolódik a kifizetési előzmény. Redis nélkül minden hidegindításkor újraindulna.
+3. **Settings → Environment Variables:** `TOKEN_MINT`, `RPC_URL`, `TOKEN_NAME`, `TOKEN_SYMBOL`
+   (és opcionálisan `LINK_X`, `LINK_TELEGRAM`, `EXCLUDE_WALLETS`). Lásd `.env.example`.
+4. **Redeploy**, majd domain: **Settings → Domains** (ott vehetsz is).
 
-### Hogyan jut az adat az oldalra
+### Frissítés
 
-- **`sync`** (ütemezett függvény, 2 percenként): beolvassa a holdereket, a vault egyenlegét és az árakat.
-  Végigmegy a vault új tranzakcióin. Minden `DistributeFeeToHolders` utasítás egy valódi kifizetés: ki mennyi SOL-t kapott.
-  A többi bejövő összeg a vaultba érkező fee. Az eredményt a Netlify Blobs tárolja (`colony` store).
-  Ez csak gyorsítótár, bármikor újraépíthető a láncból.
-- **`/api/state`**: a jelenet adatai. 5 másodpercig a CDN cache-ből jön, így sok látogató sem terhel.
-- **`/api/holder/:wallet`**: keresés a „Find my ant” mezőhöz.
+- **Hobby csomag:** a Vercel Cron itt csak naponta egyszer futhat. Ezért a frissítést a látogatások indítják:
+  ha a tárolt pillanatkép 1 percnél régebbi, a `/api/state` a válasz elküldése után a háttérben frissít
+  (`waitUntil`). Egy Redis-zár biztosítja, hogy egyszerre csak egy frissítés fusson. Látogatók nélkül nem frissít,
+  a következő látogatáskor viszont pótolja a kimaradt tranzakciókat.
+- **Pro csomag (opcionális):** percenkénti frissítés látogatók nélkül is. Állíts be egy `CRON_SECRET`-et, és add hozzá
+  a `vercel.json`-hoz:
+  ```json
+  "crons": [{ "path": "/api/sync", "schedule": "* * * * *" }]
+  ```
+  Hobby csomagon ez a beállítás deploy-hibát okoz.
 
-A holder-rewards vault címe a mintből számolható: PDA a pump programon (`6EF8…F6P`), `["holder-rewards", mint]` seedekkel.
-Az oldal „How it works” ablakában meg is jelenik, így bárki ellenőrizheti Solscan-en.
+### API
 
-Az ütemezett függvény csak a publikált (production) deployon fut. Az első kérésnél, ha még nincs adat,
-a `/api/state` maga építi fel az első pillanatképet.
+- `GET /api/state` – a jelenet adatai. 5 másodpercig a CDN cache-ből jön.
+- `GET /api/holder/:wallet` – keresés a „Find my ant” mezőhöz.
+- `GET /api/sync` – kézi vagy cron-frissítés.
 
 ## Szerkezet
 
 ```
+api/            Vercel függvények: state, holder, sync
 server/
   config.js     környezeti változók
-  chain.js      csak olvasó RPC: holderek, vault, tranzakciók, árak
+  chain.js      csak olvasó RPC: holderek, vault, tranzakciók, árak, token-adatok
   indexer.js    kifizetések és események a láncról, a publikus pillanatkép
-  demo.js       állapot nélküli demó kolónia (az idő függvénye)
-  api.js        közös API a helyi szervernek és a Netlify függvényeknek
+  storage.js    tároló: helyi fájl / Upstash Redis
+  api.js        közös API (zár, háttérfrissítés)
+  vercel.js     Vercel wiring
+  demo.js       állapot nélküli demó kolónia
   index.js      helyi szerver (npm run dev / npm start)
-netlify/
-  functions/    state, holder, sync (ütemezett)
-  lib/          közös Netlify segédkód (Blobs)
 src/
   main.js         felület, adatfrissítés, kamera, kereső
   scene/          hangyák (VAT animáció), bolyok, cukorkupac, talaj, fények

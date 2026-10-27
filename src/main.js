@@ -8,10 +8,17 @@ import { icons } from './icons.js';
 
 const $ = (id) => document.getElementById(id);
 const short = (a) => (a ? `${a.slice(0, 4)}…${a.slice(-4)}` : '');
-const sol = (v, d) => {
+// Reward amounts: SOL, or a pair token whose payouts can be tiny fractions.
+const amt = (v) => {
   const n = Number(v) || 0;
-  return n.toFixed(d ?? (n >= 100 ? 1 : n >= 1 ? 3 : 4));
+  if (n === 0) return '0';
+  if (n >= 100) return n.toFixed(1);
+  if (n >= 1) return n.toFixed(3);
+  if (n >= 0.0001) return n.toFixed(4);
+  return n.toPrecision(2);
 };
+const R = () => state?.reward?.symbol ?? 'SOL';
+const units = (raw) => Number(raw) / 10 ** (state?.reward?.decimals ?? 9);
 const compact = (n) => Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 2 }).format(n);
 const ago = (t) => {
   const s = Math.max(1, Math.round((Date.now() - t) / 1000));
@@ -126,7 +133,7 @@ async function poll(first) {
   clockSkew = state.now - Date.now(); // server clock vs ours, for "x ago" labels
   // Stash crystals scale against ~3x the average holder's share of the vault.
   const stashUnit = (state.pot.balance / Math.max(1, state.stats.eligibleCount)) * 3 || 0.001;
-  const changed = colony.sync(state.holders, { potSol: state.pot.balance, stashUnit });
+  const changed = colony.sync(state.holders, { potUsd: state.pot.usd ?? 0, stashUnit });
   if (changed) world.updatePaths(colony.paths());
   // Events are keyed, not timestamped: payouts can be indexed after newer holder events.
   const fresh = state.events.filter((ev) => !seenEvents.has(eventKey(ev)));
@@ -143,16 +150,16 @@ function handleEvent(ev) {
   if (ev.type === 'payout') {
     let i = 0;
     for (const [owner, lamports] of ev.to) {
-      const amount = Number(lamports) / 1e9;
+      const amount = units(lamports);
       // stagger so a batch reads as a wave of deliveries
       setTimeout(() => {
         const ant = colony.payout(owner, amount);
-        if (ant) popup(ant.home, `+${sol(amount)} SOL`);
+        if (ant) popup(ant.home, `+${amt(amount)} ${R()}`);
       }, i++ * 140);
     }
   } else if (ev.type === 'claim') {
-    colony.claim(Number(ev.lamports) / 1e9);
-    toast(`Creator fees landed in the rewards vault: <b>+${sol(Number(ev.lamports) / 1e9)} SOL</b>`);
+    colony.claim(units(ev.amount));
+    toast(`Creator fees landed in the rewards vault: <b>+${amt(units(ev.amount))} ${R()}</b>`);
   } else if (ev.type === 'whale') {
     shake = 1;
     const tokens = Number(ev.amount) / 10 ** state.token.decimals;
@@ -188,6 +195,7 @@ function renderStatic() {
   const { token, vault, mode } = state;
   document.querySelectorAll('[data-bind="name"]').forEach((e) => (e.textContent = token.name));
   document.querySelectorAll('[data-bind="symbol"]').forEach((e) => (e.textContent = `$${token.symbol}`));
+  document.querySelectorAll('[data-bind="reward"]').forEach((e) => (e.textContent = R()));
   document.title = `${token.name} ($${token.symbol}) — every holder is an ant`;
   $('ca').querySelector('.ca-value').textContent = token.mint || 'demo mode — no token yet';
   $('link-buy').href = $('intro-buy').href = token.mint ? `https://pump.fun/coin/${token.mint}` : 'https://pump.fun';
@@ -206,7 +214,7 @@ function renderStatic() {
 
 function renderStats() {
   const { pot, stats } = state;
-  const s4 = (v) => sol(v);
+  const s4 = (v) => amt(v);
   const count = (v) => Math.round(v).toLocaleString('en');
   tweenText('pot-sol', pot.balance, s4);
   tweenText('paid-sol', stats.totalDistributed, s4);
@@ -215,13 +223,13 @@ function renderStats() {
   tweenText('i-paid', stats.totalDistributed, s4);
   tweenText('i-ants', stats.holderCount, count);
   tweenText('i-pot', pot.balance, s4);
-  const usd = pot.solUsd ? ` ≈ $${(pot.balance * pot.solUsd).toFixed(2)} · ` : '';
+  const usd = pot.usd != null ? ` ≈ $${pot.usd.toFixed(2)} · ` : '';
   $('pot-sub').textContent = `${usd}paid out automatically by pump.fun`;
   // Fill toward the point where pump.fun runs the next distribution.
-  const fill = pot.thresholdSol ? Math.min(1, pot.balance / pot.thresholdSol) : 0;
+  const fill = pot.threshold ? Math.min(1, pot.balance / pot.threshold) : 0;
   $('cycle-bar').style.width = `${fill * 100}%`;
-  $('vault-bar-wrap').title = pot.thresholdSol
-    ? `Next payout once the vault reaches ~${sol(pot.thresholdSol)} SOL (${Math.round(fill * 100)}%)`
+  $('vault-bar-wrap').title = pot.threshold
+    ? `Next payout once the vault reaches ~${amt(pot.threshold)} ${R()} (${Math.round(fill * 100)}%)`
     : 'Next payout once the vault covers the minimum';
   tickLastPayout();
 }
@@ -244,7 +252,7 @@ function renderList(animate) {
   } else {
     const rows = tab === 'earners' ? state.earners : state.holders.slice(0, 40);
     rows.forEach((h, i) => {
-      const value = tab === 'earners' ? `${sol(h.recv)} SOL` : `${h.p.toFixed(2)}%`;
+      const value = tab === 'earners' ? `${amt(h.recv)} ${R()}` : `${h.p.toFixed(2)}%`;
       const tier = colony.get(h.o)?.tier ?? tierOf(h.p, -1, h.x);
       const me = h.o === myWallet;
       html += `<li data-owner="${h.o}"${me ? ' class="me"' : ''}><span class="rank">${i + 1}</span><span class="dot" style="background:${TIERS[tier].color}" title="${TIERS[tier].name}"></span><span class="txt"><span class="mono">${short(h.o)}</span>${me ? '<span class="you">YOU</span>' : ''}<small>${compact(h.a)} tokens</small></span><span class="amt">${value}</span></li>`;
@@ -261,10 +269,10 @@ function feedRow(ev) {
   switch (ev.type) {
     case 'payout': {
       const n = ev.to.length;
-      return `<li data-owner="${ev.to[0][0]}"><span class="ico pay">${icons.payout}</span><span class="txt">Paid to <b>${n}</b> ant${n > 1 ? 's' : ''}${link}${when}</span><span class="amt">${sol(Number(ev.lamports) / 1e9)} SOL</span></li>`;
+      return `<li data-owner="${ev.to[0][0]}"><span class="ico pay">${icons.payout}</span><span class="txt">Paid to <b>${n}</b> ant${n > 1 ? 's' : ''}${link}${when}</span><span class="amt">${amt(units(ev.amount))} ${R()}</span></li>`;
     }
     case 'claim':
-      return `<li><span class="ico claim">${icons.claim}</span><span class="txt">Fees into the vault${link}${when}</span><span class="amt">+${sol(Number(ev.lamports) / 1e9)}</span></li>`;
+      return `<li><span class="ico claim">${icons.claim}</span><span class="txt">Fees into the vault${link}${when}</span><span class="amt">+${amt(units(ev.amount))}</span></li>`;
     case 'join':
       return `<li data-owner="${ev.owner}"><span class="ico join">${icons.join}</span><span class="txt"><span class="mono">${short(ev.owner)}</span> hatched${when}</span></li>`;
     case 'leave':
@@ -326,8 +334,8 @@ async function findOwner(owner) {
   if (res?.ok) {
     const h = await res.json();
     toast(h.a > 0
-      ? `That wallet holds <b>${compact(h.a)}</b> — too small to render, but it has received <b>${sol(h.recv)} SOL</b>`
-      : `That wallet left the colony after receiving <b>${sol(h.recv)} SOL</b>`);
+      ? `That wallet holds <b>${compact(h.a)}</b> — too small to render, but it has received <b>${amt(h.recv)} ${R()}</b>`
+      : `That wallet left the colony after receiving <b>${amt(h.recv)} ${R()}</b>`);
   } else {
     toast('No ant found for that wallet. Buy a bag to hatch one!');
     f.classList.remove('shake');
@@ -362,11 +370,11 @@ function renderAntPanel(ant) {
   $('ap-addr').href = solscan('account', h.o);
   $('ap-bag').textContent = compact(h.a);
   $('ap-pct').textContent = `${h.p < 0.01 ? h.p.toFixed(4) : h.p.toFixed(2)}%`;
-  $('ap-owed').textContent = sol(h.est);
-  $('ap-recv').textContent = sol(h.recv);
+  $('ap-owed').textContent = amt(h.est);
+  $('ap-recv').textContent = amt(h.recv);
   // The meter shows how full the vault is before pump.fun's next distribution.
   const { pot, token, stats } = state;
-  $('ap-meter').style.width = `${pot.thresholdSol ? Math.min(100, (pot.balance / pot.thresholdSol) * 100) : 0}%`;
+  $('ap-meter').style.width = `${pot.threshold ? Math.min(100, (pot.balance / pot.threshold) * 100) : 0}%`;
   if (h.x) $('ap-hint').textContent = 'This wallet is marked as team / excluded.';
   else if (h.e) $('ap-hint').textContent = 'Eligible: pump.fun pays this wallet its share automatically at the next distribution.';
   else {
@@ -385,8 +393,8 @@ function renderAntPanel(ant) {
 
   const mine = h.o === myWallet;
   const text = mine
-    ? `My ant is a ${TIERS[ant.tier].name} in the $${state.token.symbol} colony. It has received ${sol(h.recv)} SOL in holder rewards so far.`
-    : `Look at this ${TIERS[ant.tier].name} in the $${state.token.symbol} ant colony: ${sol(h.recv)} SOL in holder rewards so far.`;
+    ? `My ant is a ${TIERS[ant.tier].name} in the $${state.token.symbol} colony. It has received ${amt(h.recv)} ${R()} in holder rewards so far.`
+    : `Look at this ${TIERS[ant.tier].name} in the $${state.token.symbol} ant colony: ${amt(h.recv)} ${R()} in holder rewards so far.`;
   $('ap-share').href = `https://x.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(location.origin)}`;
 }
 
@@ -490,7 +498,7 @@ function frame(dt, t) {
     }
 
     if (state) {
-      potLabel.innerHTML = `REWARDS VAULT<span>${sol(state.pot.balance)} SOL</span>`;
+      potLabel.innerHTML = `REWARDS VAULT<span>${amt(state.pot.balance)} ${R()}</span>`;
       place(potLabel, colony.potTop());
     }
     if (sel) {

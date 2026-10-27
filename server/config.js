@@ -19,6 +19,9 @@ export function loadConfig() {
     },
     rpcUrl: str('RPC_URL', 'https://api.mainnet-beta.solana.com'),
     holderSource: str('HOLDER_SOURCE', 'auto'),
+    // Optional: the asset rewards are paid in (the coin's pair). Detected from the vault when empty.
+    rewardMint: str('REWARD_MINT') || null,
+    rewardSymbol: str('REWARD_SYMBOL'),
     // Shown as ghost ants and left out of the reward estimates (dev, team, CEX...).
     excludeWallets: str('EXCLUDE_WALLETS').split(',').map((s) => s.trim()).filter(Boolean),
     // pump.fun only pays wallets holding at least this much (US$) of the coin.
