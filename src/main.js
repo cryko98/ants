@@ -269,7 +269,10 @@ function renderList(animate) {
     });
     list.dataset.top = '';
   }
-  list.innerHTML = html || '<li class="empty">Nothing here yet — the colony is just waking up.</li>';
+  const empty = state.mode === 'demo'
+    ? `Rewards start when $${state.token.symbol} goes live. Every payout will show up here.`
+    : 'Nothing here yet — the colony is just waking up.';
+  list.innerHTML = html || `<li class="empty">${empty}</li>`;
   if (animate && tab === 'feed' && prevTop && list.dataset.top !== prevTop) list.firstElementChild?.classList.add('fresh');
 }
 

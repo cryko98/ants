@@ -1,14 +1,16 @@
-// Stateless demo colony for running the site before the token exists (or without an RPC).
-// The whole snapshot is a pure function of the clock, so every request and every server
-// instance (including serverless functions) sees the same evolving colony.
+// Pre-launch colony, shown while TOKEN_MINT is empty or a placeholder ("coming soon").
+// The ants move and churn so the scene is alive, but nothing about rewards is invented:
+// the vault, payouts and the live feed stay empty until a real CA is set.
+// The snapshot is a pure function of the clock, so every request and every serverless
+// instance sees the same colony.
 
 const ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-const ORIGIN = Date.UTC(2026, 9, 20); // "launch" of the demo coin
+const ORIGIN = Date.UTC(2026, 9, 20);
 const EPOCH_MS = 15_000; // holder churn step
-const PAYOUT_EVERY = 8; // epochs between distributions (2 min)
-const BATCH = 14; // recipients per distribution transaction, like pump.fun
 const HOLDERS = 280;
 const SUPPLY = 1e9;
+// Rewards are planned in the ANTHROPIC pair token (overridable with REWARD_MINT / REWARD_SYMBOL).
+const ANTHROPIC = { mint: 'Pren1FvFX6J3E4kXhJuCiAD5aDmGEb7qJRncwA8Lkhw', symbol: 'ANTHROPIC', decimals: 9 };
 
 function mulberry32(seed) {
   return () => {
@@ -20,7 +22,7 @@ function mulberry32(seed) {
 }
 const fakeAddress = (rand, len = 44) => Array.from({ length: len }, () => ALPHABET[Math.floor(rand() * 58)]).join('');
 
-// Fixed cast of wallets with their own trading rhythm.
+// Fixed cast of wallets with their own rhythm.
 const cast = (() => {
   const rand = mulberry32(42);
   return Array.from({ length: HOLDERS }, (_, i) => ({
@@ -35,84 +37,43 @@ const cast = (() => {
 })();
 
 const present = (c, e) => c.core || (e + c.offset) % c.period < c.period * 0.8;
-const pctAt = (c, e) => {
-  const whale = (e + c.offset) % 211 < 6 && c.base < 1 ? 3 : 1;
-  return c.base * whale * (1 + 0.3 * Math.sin(e * c.freq + c.phase));
-};
-const payoutSol = (k) => 0.02 + mulberry32(k * 7919)() * 0.06;
-const sigFor = (k, b) => fakeAddress(mulberry32(k * 131 + b * 17 + 5), 88);
+const pctAt = (c, e) => c.base * (1 + 0.3 * Math.sin(e * c.freq + c.phase));
 
 export function demoSnapshot(cfg, now = Date.now()) {
   const epoch = Math.floor((now - ORIGIN) / EPOCH_MS);
-  const lastPayoutEpoch = epoch - (epoch % PAYOUT_EVERY);
-  const k = lastPayoutEpoch / PAYOUT_EVERY; // distributions so far
-
-  const holders = cast
+  const rows = cast
     .filter((c) => present(c, epoch))
-    .map((c) => ({ c, p: pctAt(c, epoch) }))
+    .map((c) => {
+      const p = pctAt(c, epoch);
+      return { o: c.o, a: (p / 100) * SUPPLY, p, x: 0, e: 1, est: 0, recv: 0 };
+    })
     .sort((a, b) => b.p - a.p);
-  const castShare = cast.reduce((s, c) => s + c.base, 0);
 
-  // Cumulative payouts: grows quickly after "launch", then slows, like a young coin.
-  const totalDistributed = 14 * Math.log1p(k / 300);
-  const vault = payoutSol(k + 1) * ((epoch % PAYOUT_EVERY) / PAYOUT_EVERY);
-  const eligibleTotal = holders.reduce((s, h) => s + h.p, 0) || 1;
-  const rows = holders.map(({ c, p }) => ({
-    o: c.o,
-    a: (p / 100) * SUPPLY,
-    p,
-    x: 0,
-    e: 1,
-    est: (vault * p) / eligibleTotal,
-    recv: totalDistributed * (c.base / castShare),
-  }));
-
-  // Events: the last few distributions (batched like on-chain) and recent holder churn.
-  const events = [];
-  for (let j = Math.max(1, k - 3); j <= k; j++) {
-    const t = ORIGIN + j * PAYOUT_EVERY * EPOCH_MS;
-    const e = j * PAYOUT_EVERY;
-    const paid = cast.filter((c) => present(c, e)).map((c) => ({ c, p: pctAt(c, e) }));
-    const sum = paid.reduce((s, h) => s + h.p, 0) || 1;
-    const amount = payoutSol(j);
-    events.push({ type: 'claim', sig: sigFor(j, 99), amount: String(Math.round(amount * 1e9)), t: t - 4000 });
-    for (let b = 0; b * BATCH < paid.length; b++) {
-      const to = paid.slice(b * BATCH, (b + 1) * BATCH).map(({ c, p }) => [c.o, String(Math.round(((amount * p) / sum) * 1e9))]);
-      events.push({ type: 'payout', sig: sigFor(j, b), amount: String(to.reduce((s, [, l]) => s + Number(l), 0)), to, t: t + b * 400 });
-    }
-  }
-  for (let e = epoch - 20; e <= epoch; e++) {
-    const t = ORIGIN + e * EPOCH_MS;
-    for (const c of cast) {
-      const was = present(c, e - 1), is = present(c, e);
-      if (!was && is) events.push({ type: 'join', owner: c.o, t });
-      else if (was && !is) events.push({ type: 'leave', owner: c.o, t });
-      else if (is && pctAt(c, e) - pctAt(c, e - 1) > 0.5) events.push({ type: 'whale', owner: c.o, amount: String(Math.round(((pctAt(c, e) - pctAt(c, e - 1)) / 100) * SUPPLY * 1e6)), t });
-    }
-  }
-  events.sort((a, b) => a.t - b.t);
-
-  const earners = [...rows].sort((a, b) => b.recv - a.recv).slice(0, 25);
   return {
     mode: 'demo',
     token: { ...cfg.token, supply: SUPPLY, decimals: 6, priceUsd: null },
-    reward: { mint: 'So11111111111111111111111111111111111111112', symbol: 'SOL', decimals: 9, priceUsd: 180 },
-    vault: 'demo',
-    pot: { balance: vault, usd: vault * 180, threshold: payoutSol(k + 1) },
+    reward: {
+      mint: cfg.rewardMint || ANTHROPIC.mint,
+      symbol: cfg.rewardSymbol || ANTHROPIC.symbol,
+      decimals: ANTHROPIC.decimals,
+      priceUsd: null,
+    },
+    vault: null,
+    pot: { balance: 0, usd: null, threshold: null },
     stats: {
-      totalDistributed,
-      totalInflow: totalDistributed + vault,
-      payouts: k,
-      paidHolders: cast.length,
-      lastPayoutAt: ORIGIN + lastPayoutEpoch * EPOCH_MS,
+      totalDistributed: 0,
+      totalInflow: 0,
+      payouts: 0,
+      paidHolders: 0,
+      lastPayoutAt: 0,
       holderCount: rows.length,
       eligibleCount: rows.length,
       minEligibleUsd: cfg.minEligibleUsd,
       backlog: 0,
     },
     holders: rows.slice(0, cfg.publicHolderLimit),
-    earners,
-    events: events.slice(-120),
+    earners: [],
+    events: [],
     updatedAt: now,
   };
 }
