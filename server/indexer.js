@@ -8,7 +8,7 @@
 //   4. publish a compact snapshot for the site
 //
 // Everything is derived from the chain; storage is only a cache of that work.
-import { createChain, holderRewardsVault, WSOL } from './chain.js';
+import { bondingCurveAddress, createChain, holderRewardsVault, WSOL } from './chain.js';
 
 const MAX_EVENTS = 250;
 // pump.fun reserves this much per eligible holder for distribution costs and pays only above
@@ -22,6 +22,7 @@ const big = (v) => BigInt(v ?? 0);
 export function createIndexer({ cfg, storage }) {
   const chain = createChain(cfg);
   const vault = holderRewardsVault(cfg.token.mint);
+  const bondingCurve = bondingCurveAddress(cfg.token.mint);
   const excluded = new Set(cfg.excludeWallets);
 
   const emptyMeta = () => ({
@@ -37,15 +38,21 @@ export function createIndexer({ cfg, storage }) {
     events: [],
   });
 
-  // Decide what the rewards are paid in. REWARD_MINT wins; otherwise a vault holding SOL means a SOL
-  // pair, and a vault with only a token account means a token pair (pump.fun keeps no SOL there).
+  // Decide what the rewards are paid in (the coin's pair asset). REWARD_MINT wins; otherwise the
+  // bonding curve tells us: a custom-pair curve holds a token account for its quote mint, a SOL-pair
+  // curve holds only the coin. The vault is the fallback (it may be empty before the first fees).
+  // A SOL answer is re-checked until the first payout, so an early wrong guess can't stick.
   async function resolveReward(meta) {
-    if (meta.reward && meta.reward.mint !== WSOL) return meta.reward;
+    const settled = meta.payouts > 0 || meta.totalInflow !== '0';
+    if (meta.reward && (meta.reward.mint !== WSOL || settled)) return meta.reward;
     let mint = cfg.rewardMint;
     if (!mint) {
-      const solInVault = (await chain.balance(vault)) > 0n;
-      const accounts = solInVault ? [] : (await chain.tokenAccounts(vault)).filter((a) => a.mint !== WSOL);
-      mint = accounts[0]?.mint ?? WSOL;
+      const curveQuote = (await chain.tokenAccounts(bondingCurve)).find((a) => a.mint !== cfg.token.mint && a.mint !== WSOL);
+      if (curveQuote) mint = curveQuote.mint;
+      else if ((await chain.balance(vault)) === 0n) {
+        mint = (await chain.tokenAccounts(vault)).find((a) => a.mint !== WSOL)?.mint;
+      }
+      mint ??= WSOL;
     }
     if (mint === WSOL) return (meta.reward = { mint: WSOL, symbol: 'SOL', decimals: 9 });
     const { decimals } = (await chain.rpc('getTokenSupply', [mint])).value;

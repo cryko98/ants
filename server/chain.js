@@ -13,6 +13,11 @@ export function holderRewardsVault(mint) {
   return findProgramAddress([new TextEncoder().encode('holder-rewards'), decodeAddress(mint)], PUMP_PROGRAM)[0];
 }
 
+// The coin's pump.fun bonding curve. For custom-pair coins it holds a token account of the quote mint.
+export function bondingCurveAddress(mint) {
+  return findProgramAddress([new TextEncoder().encode('bonding-curve'), decodeAddress(mint)], PUMP_PROGRAM)[0];
+}
+
 export function createChain(cfg) {
   async function post(body) {
     for (let attempt = 0; ; attempt++) {
