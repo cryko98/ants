@@ -139,30 +139,55 @@ dialog h2 { margin: 0 0 14px; font-size: 26px; }
 
 /* ---------- responsive ---------- */
 @media (max-width: 1100px) {
-  .links .btn.ghost:not(#how-open) { display: none; }
+  .links .btn.ghost:not(#how-open):not(#side-toggle) { display: none; }
 }
+/* Mobile: header = [brand | Feed ? Buy] + full-width CA; panels hang below it (--top-h is the
+   measured header bottom, set from JS), stats sit above the finder. */
+.side-toggle, .lbl-short { display: none; }
 @media (max-width: 760px) {
   .topbar { top: 10px; left: 10px; right: 10px; gap: 8px; flex-wrap: wrap; }
-  .brand { padding: 5px 12px 5px 6px; }
-  .brand-name { font-size: 15px; }
+  .brand { padding: 4px 10px 4px 5px; gap: 7px; min-width: 0; flex: 0 1 auto; }
+  .brand-name { font-size: 15px; white-space: nowrap; }
   .brand-logo { width: 28px; height: 28px; }
+  .brand-ticker { font-size: 12px; }
+  .links { gap: 6px; flex: none; }
+  .links .btn { padding: 7px 11px; font-size: 13px; }
+  .side-toggle { display: inline-block; }
+  #how-open { width: 34px; padding-left: 0; padding-right: 0; text-align: center; }
+  #how-open .lbl-full { display: none; }
+  #how-open .lbl-short { display: inline; font-weight: 800; }
   .ca { order: 3; flex: 1 1 100%; max-width: none; padding: 7px 12px; }
-  .links .btn { padding: 7px 12px; font-size: 13px; }
-  .stats { top: auto; bottom: 76px; left: 10px; right: 10px; width: auto; padding: 12px 14px; display: flex; gap: 14px; align-items: center; }
-  .stats .pot { margin: 0; flex: none; }
-  .pot-value { font-size: 26px; }
+
+  .stats { top: auto; bottom: 74px; left: 10px; right: 10px; width: auto; padding: 12px 14px 14px; }
+  .stats .pot { flex-direction: row; align-items: baseline; flex-wrap: wrap; gap: 0 10px; margin: 0 0 10px; }
+  .stats .pot .label { width: 100%; }
+  .pot-value { font-size: 24px; }
+  .pot-value small { font-size: 13px; }
   .pot .sub { display: none; }
-  .stats .grid { border: 0; padding: 0; gap: 4px 10px; flex: 1; }
-  .grid b { font-size: 14px; }
-  .grid .label { font-size: 9px; }
+  .stats .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 8px; padding-top: 10px; }
+  .grid > div { min-width: 0; }
+  .grid b { font-size: 14px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .grid small { display: none; }
+  .grid .label { font-size: 8.5px; letter-spacing: 0.06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .grid .lbl-full { display: none; }
+  .grid .lbl-short { display: inline; }
   .mode { top: -9px; right: 12px; background: var(--panel-solid); }
-  .side { top: 112px; left: 10px; right: 10px; width: auto; max-height: 46vh; display: none; }
+
+  .side { top: calc(var(--top-h, 120px) + 8px); left: 10px; right: 10px; width: auto; max-height: calc(100vh - var(--top-h, 120px) - var(--bottom-h, 220px) - 18px); display: none; z-index: 13; }
   .side.open { display: flex; }
-  .side-toggle { display: block; position: fixed; z-index: 11; top: 112px; right: 10px; background: var(--panel); backdrop-filter: blur(14px); }
-  .side.open + .side-toggle { top: calc(112px + 46vh + 8px); }
   .finder { bottom: 14px; }
-  .antpanel { left: 10px; right: 10px; width: auto; bottom: 76px; z-index: 12; }
-  .toasts { bottom: 150px; width: calc(100vw - 32px); }
+  /* the ant panel replaces the stats card while open */
+  .antpanel { left: 10px; right: 10px; width: auto; bottom: 74px; z-index: 12; padding: 14px; }
+  body.panel-open .stats { opacity: 0; pointer-events: none; }
+  .ap-actions .btn { font-size: 12.5px; }
+  /* toasts stack just above the stats card / ant panel; the open feed already shows them */
+  .toasts { bottom: calc(var(--bottom-h, 220px) + 8px); width: calc(100vw - 20px); }
+  body.side-open .toasts { opacity: 0; }
+  .toast:nth-last-child(n + 3) { display: none; }
+  .toast { font-size: 13px; padding: 9px 12px; }
+}
+@media (max-width: 360px) {
+  .brand-ticker { display: none; }
 }
 
 /* ---------- intro hero ---------- */

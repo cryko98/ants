@@ -52,7 +52,8 @@
         <span class="ca-label">CA</span><span class="ca-value" data-bind="mint">coming soon</span>
       </button>
       <nav class="links">
-        <button class="btn ghost" id="how-open">How it works</button>
+        <button class="btn ghost side-toggle" id="side-toggle">Feed</button>
+        <button class="btn ghost" id="how-open" aria-label="How it works"><span class="lbl-full">How it works</span><span class="lbl-short" aria-hidden="true">?</span></button>
         <a class="btn ghost" id="link-x" target="_blank" rel="noopener" hidden>X</a>
         <a class="btn ghost" id="link-tg" target="_blank" rel="noopener" hidden>Telegram</a>
         <a class="btn ghost" id="link-chart" target="_blank" rel="noopener">Chart</a>
@@ -60,7 +61,7 @@
       </nav>
     </header>
 
-    <section class="card stats" aria-label="Colony stats">
+    <section class="card stats" id="stats-card" aria-label="Colony stats">
       <div class="mode" id="mode">DEMO</div>
       <div class="pot">
         <span class="label">Holder rewards vault</span>
@@ -68,7 +69,7 @@
         <span class="sub" id="pot-sub">Paid out automatically by pump.fun</span>
       </div>
       <div class="grid">
-        <div><span class="label">Paid to holders</span><b id="paid-sol">0</b><small data-bind="reward">SOL</small></div>
+        <div><span class="label"><span class="lbl-full">Paid to holders</span><span class="lbl-short">Paid out</span></span><b id="paid-sol">0</b><small data-bind="reward">SOL</small></div>
         <div><span class="label">Ants</span><b id="holders">0</b></div>
         <div><span class="label">Wallets paid</span><b id="paid-wallets">0</b></div>
         <div><span class="label">Last payout</span><b id="last-payout">—</b></div>
@@ -84,7 +85,6 @@
       </div>
       <ol class="list" id="list"></ol>
     </section>
-    <button class="side-toggle btn ghost" id="side-toggle">Feed</button>
 
     <form class="finder" id="finder" autocomplete="off">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>

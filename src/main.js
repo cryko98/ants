@@ -321,6 +321,7 @@ $('list').addEventListener('click', (e) => {
 });
 $('side-toggle').addEventListener('click', () => {
   const open = $('side').classList.toggle('open');
+  document.body.classList.toggle('side-open', open);
   $('side-toggle').textContent = open ? 'Close' : 'Feed';
 });
 
@@ -369,6 +370,8 @@ async function findOwner(owner) {
 
 function selectAnt(ant, fly) {
   colony.select(ant);
+  document.body.classList.toggle('panel-open', !!ant);
+  requestAnimationFrame(syncTopH);
   if (!ant) {
     $('antpanel').hidden = true;
     follow = false;
@@ -463,8 +466,10 @@ canvas.addEventListener('pointermove', (e) => {
   const tip = $('tooltip');
   if (hoverAnt) {
     tip.hidden = false;
-    tip.style.left = `${e.clientX}px`;
-    tip.style.top = `${e.clientY}px`;
+    // keep the tooltip on screen (it is centred on the pointer)
+    const half = tip.offsetWidth / 2 + 8;
+    tip.style.left = `${Math.min(innerWidth - half, Math.max(half, e.clientX))}px`;
+    tip.style.top = `${Math.max(tip.offsetHeight + 22, e.clientY)}px`;
     tip.innerHTML = `<span class="mono">${short(hoverAnt.owner)}</span> · ${TIERS[hoverAnt.tier].name} · <b>${hoverAnt.data.p.toFixed(3)}%</b>`;
   } else tip.hidden = true;
 });
@@ -497,6 +502,25 @@ function place(el, pos) {
   if (visible) el.style.transform = `translate(${(proj.x * 0.5 + 0.5) * innerWidth}px, ${(-proj.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -100%)`;
 }
 potLabel.style.left = potLabel.style.top = selLabel.style.left = selLabel.style.top = '0';
+function overlaps(a, b) {
+  if (b.style.display === 'none') return false;
+  const r1 = a.getBoundingClientRect(), r2 = b.getBoundingClientRect();
+  return r1.left < r2.right && r2.left < r1.right && r1.top < r2.bottom && r2.top < r1.bottom;
+}
+
+// Panels on mobile hang below the header, whose height depends on wrapping: expose it as --top-h.
+const topbar = document.querySelector('.topbar');
+// Likewise --bottom-h: how much of the bottom the stats card (or the ant panel replacing it) covers.
+const syncTopH = () => {
+  const root = document.documentElement.style;
+  root.setProperty('--top-h', `${Math.round(topbar.getBoundingClientRect().bottom)}px`);
+  const bottom = $('antpanel').hidden ? $('stats-card') : $('antpanel');
+  root.setProperty('--bottom-h', `${Math.round(innerHeight - bottom.getBoundingClientRect().top)}px`);
+};
+const layoutObserver = new ResizeObserver(syncTopH);
+for (const el of [topbar, $('stats-card'), $('antpanel')]) layoutObserver.observe(el);
+addEventListener('resize', syncTopH);
+syncTopH();
 
 // ---------- loop ----------
 let vClock = 0; // record-mode video time, seconds
@@ -531,8 +555,10 @@ function frame(dt, t) {
     } else selLabel.style.display = 'none';
 
     const queen = colony.queen();
-    if (queen && queen !== sel && !introOpen) place(crown, queen.pos.clone().setY(queen.pos.y + queen.scale * 0.75 + 0.5));
-    else crown.style.display = 'none';
+    if (queen && queen !== sel && !introOpen) {
+      place(crown, queen.pos.clone().setY(queen.pos.y + queen.scale * 0.75 + 0.5));
+      if (crown.style.display !== 'none' && overlaps(crown, potLabel)) crown.style.display = 'none';
+    } else crown.style.display = 'none';
 
     // Slow cinematic orbit behind the intro, and again after the visitor goes idle.
     const idle = !RECORD && performance.now() - lastInteraction > 15000 && !sel && !flight;
