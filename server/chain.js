@@ -1,7 +1,7 @@
 // Read-only Solana access over plain JSON-RPC (handles v0 and v1 transactions).
-import { PublicKey } from '@solana/web3.js';
+import { decodeAddress, findProgramAddress, isOnCurve } from './pubkey.js';
 
-export const PUMP_PROGRAM = new PublicKey('6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P');
+export const PUMP_PROGRAM = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
 const TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 const TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
 const WSOL = 'So11111111111111111111111111111111111111112';
@@ -10,7 +10,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // pump.fun Holder Rewards: fees for a coin accumulate in this system-owned PDA and are paid out from it.
 export function holderRewardsVault(mint) {
-  return PublicKey.findProgramAddressSync([Buffer.from('holder-rewards'), new PublicKey(mint).toBuffer()], PUMP_PROGRAM)[0].toBase58();
+  return findProgramAddress([new TextEncoder().encode('holder-rewards'), decodeAddress(mint)], PUMP_PROGRAM)[0];
 }
 
 export function createChain(cfg) {
@@ -82,7 +82,7 @@ export function createChain(cfg) {
       const byOwner = new Map();
       for (const [owner, amount] of rows) if (amount > 0n) byOwner.set(owner, (byOwner.get(owner) ?? 0n) + amount);
       for (const owner of byOwner.keys()) {
-        if (!PublicKey.isOnCurve(new PublicKey(owner).toBytes())) byOwner.delete(owner);
+        if (!isOnCurve(owner)) byOwner.delete(owner);
       }
       return byOwner;
     },
