@@ -48,6 +48,9 @@ if (import.meta.env.DEV) {
     selectAnt: (...a) => selectAnt(...a),
     enter: () => enterColony(),
     camHook: null, // (dt) => void, runs before the controls update each frame
+    // Feed a snapshot as if it came from /api/state (used to simulate payouts in videos).
+    applyState: (next) => applyState(next, false),
+    pausePolling: false,
   };
 }
 // Record mode (dev only): time advances in fixed steps driven by __ants.step(), so a slow
@@ -138,21 +141,28 @@ async function poll(first) {
     console.warn('[ants] state unavailable:', e.message);
     return false;
   }
+  applyState(next, first, !RECORD);
+  return true;
+}
+
+// Renders a snapshot. `animate` plays the scene effects for events not seen before.
+function applyState(next, first, animate = true) {
   state = next;
   clockSkew = state.now - Date.now(); // server clock vs ours, for "x ago" labels
   // Stash crystals scale against ~3x the average holder's share of the vault.
   const stashUnit = (state.pot.balance / Math.max(1, state.stats.eligibleCount)) * 3 || 0.001;
-  const changed = colony.sync(state.holders, { potUsd: state.pot.usd ?? 0, stashUnit });
+  // The sugar pile grows with the vault's US$ value, or with how close it is to the next payout.
+  const potUsd = state.pot.usd ?? (state.pot.threshold ? (40 * state.pot.balance) / state.pot.threshold : 0);
+  const changed = colony.sync(state.holders, { potUsd, stashUnit });
   if (changed) world.updatePaths(colony.paths());
   // Events are keyed, not timestamped: payouts can be indexed after newer holder events.
   const fresh = state.events.filter((ev) => !seenEvents.has(eventKey(ev)));
   for (const ev of fresh) seenEvents.add(eventKey(ev));
   if (first) renderStatic();
-  else if (!RECORD) fresh.forEach(handleEvent);
+  else if (animate) fresh.forEach(handleEvent);
   renderStats();
   renderList(!first);
   if (colony.selected) renderAntPanel(colony.selected);
-  return true;
 }
 
 // ---------- events -> scene + toasts ----------
@@ -561,7 +571,7 @@ if (RECORD) {
       frame(1 / 30, vClock);
     }
     tickLastPayout();
-    if (vClock - lastPoll > 4) {
+    if (!window.__ants.pausePolling && vClock - lastPoll > 4) {
       lastPoll = vClock;
       poll(false);
     }
