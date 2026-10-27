@@ -12,6 +12,7 @@ const short = (a) => (a ? `${a.slice(0, 4)}…${a.slice(-4)}` : '');
 const amt = (v) => {
   const n = Number(v) || 0;
   if (n === 0) return '0';
+  if (n >= 10000) return compact(n);
   if (n >= 100) return n.toFixed(1);
   if (n >= 1) return n.toFixed(3);
   if (n >= 0.0001) return n.toFixed(4);
