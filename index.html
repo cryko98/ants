@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Ant Colony — every holder is an ant</title>
+    <meta name="description" content="A living 3D ant colony on Solana. Every holder is an ant, sized by their bag, hauling creator rewards home in SOL." />
+    <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="icon" href="/favicon-64.png" sizes="64x64" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:image" content="/logo.png" />
+    <meta name="theme-color" content="#1a110b" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+
+    <div id="loader" class="loader">
+      <div class="loader-inner">
+        <img class="loader-ant" src="/logo-128.png" alt="" width="88" height="88" />
+        <p id="loader-text">Waking the colony…</p>
+      </div>
+    </div>
+
+    <section class="intro" id="intro" hidden>
+      <div class="intro-inner">
+        <img class="intro-logo" src="/logo.png" alt="" width="132" height="132" />
+        <span class="intro-kicker"><i></i> Live on Solana</span>
+        <h1 data-bind="name">Ant Colony</h1>
+        <p class="intro-tag">Every holder is an ant. Every trade feeds the colony.<br />Your ant hauls your share of the creator fees home, paid out in real SOL.</p>
+        <div class="intro-stats">
+          <div><b id="i-paid">0</b><span>SOL paid to holders</span></div>
+          <div><b id="i-ants">0</b><span>ants in the colony</span></div>
+          <div><b id="i-pot">0</b><span>SOL in the rewards vault</span></div>
+        </div>
+        <div class="intro-cta">
+          <button class="btn primary big" id="intro-enter">Enter the colony</button>
+          <a class="btn ghost big" id="intro-buy" target="_blank" rel="noopener">Buy <span data-bind="symbol">$ANTS</span></a>
+        </div>
+      </div>
+    </section>
+
+    <header class="topbar">
+      <a class="brand" href="/">
+        <img class="brand-logo" src="/logo-128.png" alt="" width="34" height="34" />
+        <span class="brand-name" data-bind="name">Ant Colony</span>
+        <span class="brand-ticker" data-bind="symbol">$ANTS</span>
+      </a>
+      <button class="ca" id="ca" title="Copy contract address">
+        <span class="ca-label">CA</span><span class="ca-value" data-bind="mint">coming soon</span>
+      </button>
+      <nav class="links">
+        <button class="btn ghost" id="how-open">How it works</button>
+        <a class="btn ghost" id="link-x" target="_blank" rel="noopener" hidden>X</a>
+        <a class="btn ghost" id="link-tg" target="_blank" rel="noopener" hidden>Telegram</a>
+        <a class="btn ghost" id="link-chart" target="_blank" rel="noopener">Chart</a>
+        <a class="btn primary" id="link-buy" target="_blank" rel="noopener">Buy</a>
+      </nav>
+    </header>
+
+    <section class="card stats" aria-label="Colony stats">
+      <div class="mode" id="mode">DEMO</div>
+      <div class="pot">
+        <span class="label">Holder rewards vault</span>
+        <span class="pot-value"><span id="pot-sol">0.000</span> <small>SOL</small></span>
+        <span class="sub" id="pot-sub">Paid out automatically by pump.fun</span>
+      </div>
+      <div class="grid">
+        <div><span class="label">Paid to holders</span><b id="paid-sol">0</b><small>SOL</small></div>
+        <div><span class="label">Ants</span><b id="holders">0</b></div>
+        <div><span class="label">Wallets paid</span><b id="paid-wallets">0</b></div>
+        <div><span class="label">Last payout</span><b id="last-payout">—</b></div>
+      </div>
+      <div class="cycle-bar" id="vault-bar-wrap" title="The next payout runs once the vault covers the minimum"><span id="cycle-bar"></span></div>
+    </section>
+
+    <section class="card side" id="side" aria-label="Leaderboard and feed">
+      <div class="tabs" role="tablist">
+        <button role="tab" class="tab active" data-tab="feed">Live feed</button>
+        <button role="tab" class="tab" data-tab="earners">Top earners</button>
+        <button role="tab" class="tab" data-tab="bags">Biggest ants</button>
+      </div>
+      <ol class="list" id="list"></ol>
+    </section>
+    <button class="side-toggle btn ghost" id="side-toggle">Feed</button>
+
+    <form class="finder" id="finder" autocomplete="off">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>
+      <input id="finder-input" placeholder="Paste your wallet to find your ant" spellcheck="false" />
+      <button class="btn primary" type="submit">Find</button>
+    </form>
+
+    <aside class="card antpanel" id="antpanel" hidden>
+      <button class="close" id="antpanel-close" aria-label="Close">×</button>
+      <div class="ap-head">
+        <span class="tier" id="ap-tier">Worker</span>
+        <a class="mono" id="ap-addr" target="_blank" rel="noopener"></a>
+      </div>
+      <div class="ap-grid">
+        <div><span class="label">Bag</span><b id="ap-bag">0</b></div>
+        <div><span class="label">Share of supply</span><b id="ap-pct">0%</b></div>
+        <div><span class="label">Next payout (est.)</span><b id="ap-owed">0</b><small>SOL</small></div>
+        <div><span class="label">Received</span><b id="ap-recv">0</b><small>SOL</small></div>
+      </div>
+      <div class="meter"><span id="ap-meter"></span></div>
+      <p class="hint" id="ap-hint"></p>
+      <p class="evolve" id="ap-evolve"></p>
+      <div class="ap-actions">
+        <button class="btn ghost" id="ap-follow">Follow</button>
+        <button class="btn ghost" id="ap-copy">Copy address</button>
+        <a class="btn primary" id="ap-share" target="_blank" rel="noopener">Share</a>
+      </div>
+    </aside>
+
+    <div class="tooltip" id="tooltip" hidden></div>
+    <div id="labels"></div>
+    <div class="toasts" id="toasts"></div>
+
+    <dialog id="how">
+      <h2>How the colony works</h2>
+      <ol class="how-steps">
+        <li><b>Hold, hatch.</b> Every wallet holding the token hatches an ant. The bigger your bag, the bigger your ant — from tiny workers to soldiers, majors and the Queen.</li>
+        <li><b>Fees become sugar.</b> This coin launched as a pump.fun <b>Holder Rewards</b> coin: the creator fee from every trade goes to holders, not to the dev. It collects in the coin's on-chain vault, the sugar pile in the middle.</li>
+        <li><b>Ants haul it home.</b> Every so often pump.fun splits the vault between every wallet holding at least ~$<span data-bind="min-usd">20</span> of the coin, pro-rata to their bag. Your ant carries your share back to its mound.</li>
+        <li><b>Paid in SOL.</b> It lands in your wallet automatically, no claiming and no staking. Every payout on this page is read straight from the chain.</li>
+      </ol>
+      <ul class="legend">
+        <li><i style="background: #d79a2b"></i><b>Queen</b> the #1 holder</li>
+        <li><i style="background: #8f2c12"></i><b>Major</b> 1%+ of supply</li>
+        <li><i style="background: #5c2416"></i><b>Soldier</b> 0.1%+</li>
+        <li><i style="background: #2b1c14"></i><b>Worker</b> everyone else</li>
+      </ul>
+      <p class="fine">Payouts are run by pump.fun, net of a small network-cost reserve, and only while the vault holds enough to cover it. This site never holds funds or keys; it only reads the chain. Check the rewards vault yourself: <a class="mono" id="how-wallet" target="_blank" rel="noopener"></a></p>
+      <form method="dialog"><button class="btn primary">Got it</button></form>
+    </dialog>
+
+    <svg width="0" height="0" style="position: absolute">
+      <symbol id="ant-glyph" viewBox="0 0 64 64">
+        <g fill="currentColor">
+          <ellipse cx="32" cy="15" rx="7" ry="6.5" />
+          <ellipse cx="32" cy="29" rx="5" ry="7" />
+          <ellipse cx="32" cy="47" rx="9.5" ry="12" />
+        </g>
+        <g stroke="currentColor" stroke-width="2.6" stroke-linecap="round" fill="none">
+          <path d="M28 10 22 2M36 10l6-8" />
+          <path d="M28 26 16 20l-6 4M36 26l12-6 6 4M28 31l-14 4-4 8M36 31l14 4 4 8M29 35 18 46l-2 10M35 35l11 11 2 10" />
+        </g>
+      </symbol>
+    </svg>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
