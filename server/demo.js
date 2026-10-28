@@ -9,8 +9,8 @@ const ORIGIN = Date.UTC(2026, 9, 20);
 const EPOCH_MS = 15_000; // holder churn step
 const HOLDERS = 280;
 const SUPPLY = 1e9;
-// Rewards are planned in the ANTHROPIC pair token (overridable with REWARD_MINT / REWARD_SYMBOL).
-const ANTHROPIC = { mint: 'Pren1FvFX6J3E4kXhJuCiAD5aDmGEb7qJRncwA8Lkhw', symbol: 'ANTHROPIC', decimals: 9 };
+// Rewards are planned in SOL (a SOL-paired coin); REWARD_MINT / REWARD_SYMBOL can override it.
+const SOL = { mint: 'So11111111111111111111111111111111111111112', symbol: 'SOL', decimals: 9 };
 
 function mulberry32(seed) {
   return () => {
@@ -53,9 +53,9 @@ export function demoSnapshot(cfg, now = Date.now()) {
     mode: 'demo',
     token: { ...cfg.token, supply: SUPPLY, decimals: 6, priceUsd: null },
     reward: {
-      mint: cfg.rewardMint || ANTHROPIC.mint,
-      symbol: cfg.rewardSymbol || ANTHROPIC.symbol,
-      decimals: ANTHROPIC.decimals,
+      mint: cfg.rewardMint || SOL.mint,
+      symbol: cfg.rewardSymbol || SOL.symbol,
+      decimals: SOL.decimals,
       priceUsd: null,
     },
     vault: null,

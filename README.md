@@ -3,7 +3,7 @@
 Élő 3D hangyakolónia egy pump.fun **Holder Rewards** coinhoz. Minden holder egy hangya, amelynek a mérete
 a tartott mennyiségtől függ. A trade-ekből származó creator fee nem a devhez megy, hanem a coin
 on-chain vaultjába (ez a cukorkupac). Onnan a pump.fun időnként automatikusan kiosztja a holdereknek,
-a coin párjában: SOL-ban vagy egy custom pair tokenben (például ANTHROPIC).
+a coin párjában: SOL-ban, vagy custom pair esetén abban a tokenben (például PUMP).
 Az oldal ezeket a **valódi kifizetéseket olvassa a láncról**.
 
 Az oldal **csak olvas**: nincs privát kulcs, nem kezel pénzt, és nem fizet ki semmit.
